@@ -13,16 +13,29 @@
 # serves as the stdlib provider + a guaranteed-working fallback.
 
 import os
+from PyInstaller.utils.hooks import collect_all
 
 _icon = os.path.join(SPECPATH, 'build', 'icon.ico')
 _icon = _icon if os.path.exists(_icon) else None
 
+# curl_cffi backs yt-dlp's browser impersonation, which is load-bearing for
+# Rumble (its pages now 403 a plain request behind Cloudflare-style bot
+# detection — see build_opts / CLAUDE.md). The compiled _wrapper.pyd
+# (statically-linked libcurl-impersonate, ~3 MB, no sibling DLLs) is pulled in
+# automatically by normal import-graph analysis now that build_opts does an
+# explicit `import curl_cffi`. collect_all is belt-and-suspenders: it force-
+# bundles every pure-Python submodule + the dist-info so nothing curl_cffi
+# imports lazily can go missing. (There is no contributed PyInstaller hook for
+# curl_cffi in this environment, and it has no orphan data files — it relies on
+# certifi's CA bundle, which certifi's own hook ships.)
+_cc_datas, _cc_binaries, _cc_hidden = collect_all('curl_cffi')
+
 a = Analysis(
     ['VideoAudioDownloader_UI.py'],
     pathex=[],
-    binaries=[],
-    datas=[],
-    hiddenimports=[],
+    binaries=_cc_binaries,
+    datas=_cc_datas,
+    hiddenimports=_cc_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

@@ -509,6 +509,23 @@ def build_opts(url, fmt, folder, progress_hook, logger, cookies_browser="none",
             else:
                 opts['format'] = '18/b[ext=mp4][acodec!=none][vcodec!=none]/b'
 
+    else:
+        # Non-YouTube sites (Rumble, etc.). Rumble now gates its pages behind
+        # Cloudflare-style bot detection that 403s yt-dlp's default request at
+        # the very first "Downloading webpage" step. Impersonating a real Chrome
+        # browser's TLS fingerprint (via curl_cffi) gets past it. Only set this
+        # when curl_cffi is importable — it's the sole request handler that backs
+        # impersonation, and without it yt-dlp errors at request time. It's
+        # harmless on sites that don't need it. (YouTube is deliberately excluded
+        # above — it has its own cookie / PO-token handling and must not be
+        # impersonated.)
+        try:
+            import curl_cffi  # noqa: F401  (only curl_cffi backs impersonation)
+            from yt_dlp.networking.impersonate import ImpersonateTarget
+            opts['impersonate'] = ImpersonateTarget.from_str('chrome')
+        except Exception:
+            pass
+
     return opts
 
 
